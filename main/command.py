@@ -258,7 +258,7 @@ def cmd(*args, **kwargs):
     try:
         return pre_cmd(*args, **kwargs)
     except Exception as e:
-        return f'Error: "{str(e).encode("cp866")}"'
+        return f'Error: "{str(e)}"'.encode('cp866')
 
 
 def pre_cmd(s: str, directory='', v=False):
