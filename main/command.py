@@ -264,7 +264,7 @@ def cmd(*args, **kwargs):
 def pre_cmd(s: str, directory='', v=False):
     global current_path, infoA, cursor_down
     if v:
-        return 9, 0
+        return 9, 1
 
     # ?
     variables = {
