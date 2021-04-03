@@ -8,6 +8,8 @@ import ctypes
 from re import findall, MULTILINE
 import autoit
 from urllib.request import urlretrieve
+import socket
+import urllib
 
 from github import Github, InputGitTreeElement
 import shlex
